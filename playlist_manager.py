@@ -1,8 +1,9 @@
 import sys
-from utils.command_handler import handle_command_line_args
+from utils import CommandHandler
 
 def main():
-    handle_command_line_args(sys.argv[1:])
+    command_handler = CommandHandler()
+    command_handler.handle_command_line_args(sys.argv[1:])
 
 if __name__ == "__main__":
     main()
