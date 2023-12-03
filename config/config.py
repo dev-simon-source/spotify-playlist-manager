@@ -1,7 +1,19 @@
 action_mapping = {
-        'create':   'create_playlist',
-        'update':   'update_playlist',
-        'add':      'add_to_playlist',
-        'remove':   'remove_playlist'
-        # Add more mappings as needed
+    'create': {
+        'method': 'create_playlist',
+        'description': 'Create a new playlist.'
+    },
+    'update': {
+        'method': 'update_playlist',
+        'description': 'Update an existing playlist.'
+    },
+    'add': {
+        'method': 'add_to_playlist',
+        'description': 'Add tracks to a playlist.'
+    },
+    'remove': {
+        'method': 'remove_playlist',
+        'description': 'Remove a playlist.'
     }
+    # Add more mappings as needed
+}
