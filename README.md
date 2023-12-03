@@ -29,15 +29,15 @@ pip install -r requirements.txt
 Create a Spotify Developer account and register a new application to obtain API credentials.
 Set the enviroment variables for the Spotify API client_id and client_secret.
 ```bash
-    export client_id=your_client_id
-    export client_secret=your_client_secret
+export client_id=your_client_id
+export client_secret=your_client_secret
 ```
 
 
 4. Run the Script:
 
 ```bash
-    python playlist_manager.py
+python playlist_manager.py
 ```
 ## Usage
 
