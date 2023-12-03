@@ -55,7 +55,7 @@ If you'd like to contribute to this project, feel free to fork the repository an
 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-Acknowledgments
+## Acknowledgments
 
 Special thanks to the Spotify API for making it possible to interact with Spotify programmatically.
 
