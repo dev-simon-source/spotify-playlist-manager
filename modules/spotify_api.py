@@ -2,6 +2,11 @@ import os
 import tekore as tk
 import pandas as pd
 from tqdm import tqdm
+import time
+
+from custom_types import SpotifySong
+
+DATABASE_NAME = 'results/arousal_dataset.csv'
 
 class SpotifyAPI:
     def __init__(self):
@@ -15,39 +20,78 @@ class SpotifyAPI:
         return tk.Spotify(token)
 
     def get_music_recommandation(self):
-        genres = self.token.recommendation_genre_seeds()
-
-        data_dict = {
-            "id":[], 
-            "genre":[], 
-            "track_name":[], 
-            "artist_name":[],
-            "valence":[],     # <-- this is our psychological value
-            "energy":[]       # <-- this too 
-        }
+        self.__set_song_database()
         
-        
-        # Get recommendation for each genre
-        for genre in tqdm(genres):
-            
-            recs = self.token.recommendations(genres = [genre], limit = 100)
-            recs = eval(recs.json().replace("null", "-999").replace("false", "False").replace("true", "True"))["tracks"]
-            
-            for track in recs:
-                data_dict["id"].append(track["id"])
-                data_dict["genre"].append(genre)
-                track_meta = self.token.track(track["id"])
-                data_dict["track_name"].append(track_meta.name)
-                data_dict["artist_name"].append(track_meta.album.artists[0].name)
-                track_features = self.token.track_audio_features(track["id"])
-                data_dict["valence"].append(track_features.valence)
-                data_dict["energy"].append(track_features.energy)
+        self.spotify_songs = []
+
+        try:
+            genres = self.token.recommendation_genre_seeds()
+
+            # Get recommendation for each genre
+            for genre in tqdm(genres):
+                self.__get_songs_for_genre(genre)
+
+        except Exception as e:
+            print(f"Error getting recommendations: {e}")
+        finally:
+            self.__safe_result(self.spotify_songs)
 
 
+    def __check_song_exists(self, track_id):
+        # Check if the track ID is already in the set
+        if track_id in self.unique_ids:
+            return True
+        else:
+            self.unique_ids.add(track_id)
+            return False
 
-        # Store data in pandas dataframe
-        df = pd.DataFrame(data_dict)
+    def __set_song_database(self):
+        try:
+            self.existing_df = pd.read_csv(DATABASE_NAME)
+            self.unique_ids = set(self.existing_df["id"].tolist())
+        except FileNotFoundError:
+            self.existing_df = pd.DataFrame()
+            self.unique_ids = set()
+
+    def __get_song_data(self, track_id, retries=3):
+        try:
+            if not self.__check_song_exists(track_id):
+                self.track_meta = self.token.track(track_id)
+                self.track_features = self.token.track_audio_features(track_id)
+                return True
+            else:
+                print("Track already exists in the database...")
+        except Exception as e:
+            print(e)
+            if retries > 0:
+                print(f"Retrying in 30 seconds... ({retries} retries left)")
+                time.sleep(30)
+                return self.__get_song_data(track_id, retries=retries-1)
+            else:
+                print("Max retries reached. Unable to fetch song data.")
+        return False
+
+    def __get_songs_for_genre(self, genre):
+        print('Get Genre: ' + genre)
+        recs = self.token.recommendations(genres=[genre], limit=100)
+        recs = eval(recs.json().replace("null", "-999").replace("false", "False").replace("true", "True"))["tracks"]
+
+        for track in tqdm(recs):
+            if self.__get_song_data(track["id"]):
+                song = SpotifySong(id=track["id"], genre=genre, name=self.track_meta.name, artist_name=self.track_meta.album.artists[0].name, valence=self.track_features.valence, energy=self.track_features.energy)
+                self.spotify_songs.append(song)
+    
+    def __safe_result(self, spotify_songs):
+        songs_dict_list = [vars(song) for song in spotify_songs]
+
+        # Convert the list of dictionaries to a Pandas DataFrame
+        new_df = pd.DataFrame(songs_dict_list)
+
+        # Concatenate new data with existing data
+        combined_df = pd.concat([self.existing_df, new_df])
 
         # Drop duplicates
-        df.drop_duplicates(subset = "id", keep = "first", inplace = True)
-        df.to_csv("arousal_dataset.csv", index = False)
+        combined_df.drop_duplicates(subset="id", keep="first", inplace=True)
+
+        # Save to CSV
+        combined_df.to_csv(DATABASE_NAME, index=False)

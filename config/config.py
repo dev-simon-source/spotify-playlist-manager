@@ -1,4 +1,8 @@
 action_mapping = {
+    'init': {
+        'method': 'init',
+        'description': 'Initialisation of tracks.'
+    },
     'create': {
         'method': 'create_playlist',
         'description': 'Create a new playlist.'
