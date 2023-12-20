@@ -1,7 +1,7 @@
 import os
 import tekore as tk
 import pandas as pd
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import time
 
 from custom_types import SpotifySong
@@ -19,7 +19,7 @@ class SpotifyAPI:
         token = tk.request_client_token(client_id, secret_key)
         return tk.Spotify(token)
 
-    def get_music_recommandation(self):
+    def get_music_recommandation(self,retries=3):
         self.__set_song_database()
         
         self.spotify_songs = []
@@ -28,11 +28,23 @@ class SpotifyAPI:
             genres = self.token.recommendation_genre_seeds()
 
             # Get recommendation for each genre
-            for genre in tqdm(genres):
+            t = trange(len(genres), desc="Processing")
+
+            for idx, genre in enumerate(genres, start=1):
+                t.set_description(f"Processing {genre}")
                 self.__get_songs_for_genre(genre)
+                t.update(1)
+
+            t.close()
 
         except Exception as e:
             print(f"Error getting recommendations: {e}")
+            if retries > 0:
+                print(f"Retrying in 30 seconds... ({retries} retries left)")
+                time.sleep(30)
+                return self.get_music_recommandation(retries=retries-1)
+            else:
+                print("Max retries reached. Unable to fetch song data.")
         finally:
             self.__safe_result(self.spotify_songs)
 
@@ -56,6 +68,7 @@ class SpotifyAPI:
     def __get_song_data(self, track_id, retries=3):
         try:
             if not self.__check_song_exists(track_id):
+                # print(f"Collecting data for song with ID: {track_id}")
                 self.track_meta = self.token.track(track_id)
                 self.track_features = self.token.track_audio_features(track_id)
                 return True
@@ -72,11 +85,10 @@ class SpotifyAPI:
         return False
 
     def __get_songs_for_genre(self, genre):
-        print('Get Genre: ' + genre)
-        recs = self.token.recommendations(genres=[genre], limit=100)
+        recs = self.token.recommendations(genres=[genre], limit=10)
         recs = eval(recs.json().replace("null", "-999").replace("false", "False").replace("true", "True"))["tracks"]
 
-        for track in tqdm(recs):
+        for track in recs:
             if self.__get_song_data(track["id"]):
                 song = SpotifySong(id=track["id"], genre=genre, name=self.track_meta.name, artist_name=self.track_meta.album.artists[0].name, valence=self.track_features.valence, energy=self.track_features.energy)
                 self.spotify_songs.append(song)
